@@ -30,6 +30,7 @@ import tensorflow as tf
 
 class BertConfig(object):
   """Configuration for `BertModel`."""
+  """Bert模型的设置"""
 
   def __init__(self,
                vocab_size,
@@ -47,23 +48,33 @@ class BertConfig(object):
 
     Args:
       vocab_size: Vocabulary size of `inputs_ids` in `BertModel`.
+        单词量
       hidden_size: Size of the encoder layers and the pooler layer.
+        每个隐藏层的vector size
       num_hidden_layers: Number of hidden layers in the Transformer encoder.
+        Transformer encoder的层数
       num_attention_heads: Number of attention heads for each attention layer in
         the Transformer encoder.
+        attention heads的个数
       intermediate_size: The size of the "intermediate" (i.e., feed-forward)
         layer in the Transformer encoder.
+        feed-forward中间层的大小
       hidden_act: The non-linear activation function (function or string) in the
         encoder and pooler.
+
       hidden_dropout_prob: The dropout probability for all fully connected
         layers in the embeddings, encoder, and pooler.
+        dropout概率
       attention_probs_dropout_prob: The dropout ratio for the attention
         probabilities.
+
       max_position_embeddings: The maximum sequence length that this model might
         ever be used with. Typically set this to something large just in case
         (e.g., 512 or 1024 or 2048).
+        模型最长可以承受的sequence length
       type_vocab_size: The vocabulary size of the `token_type_ids` passed into
         `BertModel`.
+
       initializer_range: The stdev of the truncated_normal_initializer for
         initializing all weight matrices.
     """
@@ -82,6 +93,7 @@ class BertConfig(object):
   @classmethod
   def from_dict(cls, json_object):
     """Constructs a `BertConfig` from a Python dictionary of parameters."""
+    # 从一个python dict当中构造BertConfig
     config = BertConfig(vocab_size=None)
     for (key, value) in six.iteritems(json_object):
       config.__dict__[key] = value
@@ -90,6 +102,7 @@ class BertConfig(object):
   @classmethod
   def from_json_file(cls, json_file):
     """Constructs a `BertConfig` from a json file of parameters."""
+    """从一个json文件中构造BertConfig"""
     with tf.gfile.GFile(json_file, "r") as reader:
       text = reader.read()
     return cls.from_dict(json.loads(text))
@@ -106,11 +119,14 @@ class BertConfig(object):
 
 class BertModel(object):
   """BERT model ("Bidirectional Encoder Representations from Transformers").
+  BERT模型代码
 
   Example usage:
+  用法：
 
   ```python
   # Already been converted into WordPiece token ids
+  如果单词已经被转换成WordPiece id
   input_ids = tf.constant([[31, 51, 99], [15, 5, 0]])
   input_mask = tf.constant([[1, 1, 1], [1, 1, 0]])
   token_type_ids = tf.constant([[0, 0, 1], [0, 2, 0]])
@@ -142,12 +158,18 @@ class BertModel(object):
       config: `BertConfig` instance.
       is_training: bool. true for training model, false for eval model. Controls
         whether dropout will be applied.
+        训练还是预测模式，唯一的作用是改变dropout层。
       input_ids: int32 Tensor of shape [batch_size, seq_length].
+      输入，形状为[batch_size, seq_length]
       input_mask: (optional) int32 Tensor of shape [batch_size, seq_length].
+      输入的mask，形状为[batch_size, seq_length]
       token_type_ids: (optional) int32 Tensor of shape [batch_size, seq_length].
+      token type, 形状为[batch_size, seq_length]
       use_one_hot_embeddings: (optional) bool. Whether to use one-hot word
         embeddings or tf.embedding_lookup() for the word embeddings.
+        是否使用one hot embedding
       scope: (optional) variable scope. Defaults to "bert".
+        模型的scope，默认是"bert"
 
     Raises:
       ValueError: The config is invalid or one of the input tensor shapes
@@ -171,6 +193,7 @@ class BertModel(object):
     with tf.variable_scope(scope, default_name="bert"):
       with tf.variable_scope("embeddings"):
         # Perform embedding lookup on the word ids.
+        # embedding层
         (self.embedding_output, self.embedding_table) = embedding_lookup(
             input_ids=input_ids,
             vocab_size=config.vocab_size,
@@ -181,6 +204,7 @@ class BertModel(object):
 
         # Add positional embeddings and token type embeddings, then layer
         # normalize and perform dropout.
+        # positional encoding, token embedding, layer norm和dropout
         self.embedding_output = embedding_postprocessor(
             input_tensor=self.embedding_output,
             use_token_type=True,
@@ -197,11 +221,16 @@ class BertModel(object):
         # This converts a 2D mask of shape [batch_size, seq_length] to a 3D
         # mask of shape [batch_size, seq_length, seq_length] which is used
         # for the attention scores.
+        # 构建attention score的mask。输入是[batch_size, seq_length]的input，
+        # 输出是[batch_size, seq_length, seq_length]的形状，
+        # 也就是表示两个位置之间的attention权重
         attention_mask = create_attention_mask_from_input_mask(
             input_ids, input_mask)
 
         # Run the stacked transformer.
         # `sequence_output` shape = [batch_size, seq_length, hidden_size].
+        # 运行stacked transformer encoder, 也就是很多层transformer encoder叠加到一起
+        # 输出的是encoder最后一层，形状为[batch_size, seq_length, hidden_size]
         self.all_encoder_layers = transformer_model(
             input_tensor=self.embedding_output,
             attention_mask=attention_mask,
@@ -221,10 +250,15 @@ class BertModel(object):
       # [batch_size, hidden_size]. This is necessary for segment-level
       # (or segment-pair-level) classification tasks where we need a fixed
       # dimensional representation of the segment.
+      # "pooler"层会把编码后的sequence tensor从形状[batch_size, seq_length, hidden_size]
+      # 转变为形状[batch_size, hidden_size]。这个对于segment-level或者segment-pair-level
+      # 的分类任务有用，因为我们需要一个固定维度的变量用作segment的表示。
       with tf.variable_scope("pooler"):
         # We "pool" the model by simply taking the hidden state corresponding
         # to the first token. We assume that this has been pre-trained
+        # 我们用第一个token的hidden state作为sequence的embedding
         first_token_tensor = tf.squeeze(self.sequence_output[:, 0:1, :], axis=1)
+        # 注意拿到这侧embedding之后还有一层linear layer + activation才是segment(-pair)的表示
         self.pooled_output = tf.layers.dense(
             first_token_tensor,
             config.hidden_size,
@@ -236,33 +270,42 @@ class BertModel(object):
 
   def get_sequence_output(self):
     """Gets final hidden layer of encoder.
+    拿到encoder最后一层
 
     Returns:
       float Tensor of shape [batch_size, seq_length, hidden_size] corresponding
       to the final hidden of the transformer encoder.
+      形状为[batch_size, seq_length, hidden_size]
     """
     return self.sequence_output
 
   def get_all_encoder_layers(self):
+    # 所有的encoder层
     return self.all_encoder_layers
 
   def get_embedding_output(self):
     """Gets output of the embedding lookup (i.e., input to the transformer).
+    拿到embedding lookup层的输出，也就是transformer的输入
 
     Returns:
       float Tensor of shape [batch_size, seq_length, hidden_size] corresponding
       to the output of the embedding layer, after summing the word
       embeddings with the positional embeddings and the token type embeddings,
       then performing layer normalization. This is the input to the transformer.
+      形状为[batch_size, seq_length, hidden_size]的tensor，embedding层的输出
+      这里已经加上了positional encoding和token embedding ([0,...,0, 1,...,1])
+      然后是layer norm。transformer模型的输入。
     """
     return self.embedding_output
 
   def get_embedding_table(self):
+    # embedding lookup table
     return self.embedding_table
 
 
 def gelu(x):
   """Gaussian Error Linear Unit.
+  GeLU，一种activation函数
 
   This is a smoother version of the RELU.
   Original paper: https://arxiv.org/abs/1606.08415
@@ -279,14 +322,17 @@ def gelu(x):
 
 def get_activation(activation_string):
   """Maps a string to a Python function, e.g., "relu" => `tf.nn.relu`.
+  用函数名称得到一个激活函数
 
   Args:
     activation_string: String name of the activation function.
+    激活函数名称
 
   Returns:
     A Python function corresponding to the activation function. If
     `activation_string` is None, empty, or "linear", this will return None.
     If `activation_string` is not a string, it will return `activation_string`.
+    返回一个Python激活函数。
 
   Raises:
     ValueError: The `activation_string` does not correspond to a known
@@ -343,6 +389,7 @@ def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
 
 def dropout(input_tensor, dropout_prob):
   """Perform dropout.
+  dropout层
 
   Args:
     input_tensor: float Tensor.
@@ -361,12 +408,16 @@ def dropout(input_tensor, dropout_prob):
 
 def layer_norm(input_tensor, name=None):
   """Run layer normalization on the last dimension of the tensor."""
+  """layer norm层
+  https://www.tensorflow.org/api_docs/python/tf/contrib/layers/layer_norm
+  """
   return tf.contrib.layers.layer_norm(
       inputs=input_tensor, begin_norm_axis=-1, begin_params_axis=-1, scope=name)
 
 
 def layer_norm_and_dropout(input_tensor, dropout_prob, name=None):
   """Runs layer normalization followed by dropout."""
+  """layernorm 和 dropout"""
   output_tensor = layer_norm(input_tensor, name)
   output_tensor = dropout(output_tensor, dropout_prob)
   return output_tensor
@@ -384,28 +435,39 @@ def embedding_lookup(input_ids,
                      word_embedding_name="word_embeddings",
                      use_one_hot_embeddings=False):
   """Looks up words embeddings for id tensor.
+  word emebdding层
 
   Args:
     input_ids: int32 Tensor of shape [batch_size, seq_length] containing word
       ids.
+      形状为[batch_size, seq_length]的输入
     vocab_size: int. Size of the embedding vocabulary.
+      单词量
     embedding_size: int. Width of the word embeddings.
+      每个词向量的维度
     initializer_range: float. Embedding initialization range.
+      初始化的范围
     word_embedding_name: string. Name of the embedding table.
+      embedding_table的名字
     use_one_hot_embeddings: bool. If True, use one-hot method for word
       embeddings. If False, use `tf.gather()`.
 
   Returns:
     float Tensor of shape [batch_size, seq_length, embedding_size].
+    输出一个形状为[batch_size, seq_length, embedding_size]的tensor
   """
   # This function assumes that the input is of shape [batch_size, seq_length,
   # num_inputs].
+  # 我们假定输入tensor的形状为[batch_size, seq_length, num_inputs].
   #
   # If the input is a 2D tensor of shape [batch_size, seq_length], we
   # reshape to [batch_size, seq_length, 1].
+  # 如果输入是一个形状为[batch_size, seq_length]的2D tensor，我们先把形状变成
+  # [batch_size, seq_length, 1]
   if input_ids.shape.ndims == 2:
     input_ids = tf.expand_dims(input_ids, axis=[-1])
 
+  # 词向量层的参数
   embedding_table = tf.get_variable(
       name=word_embedding_name,
       shape=[vocab_size, embedding_size],
