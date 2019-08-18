@@ -129,13 +129,17 @@ class InputExample(object):
 
   def __init__(self, guid, text_a, text_b=None, label=None):
     """Constructs a InputExample.
+      构建一个输入Example
 
     Args:
       guid: Unique id for the example.
+        example的ID
       text_a: string. The untokenized text of the first sequence. For single
         sequence tasks, only this sequence must be specified.
+        第一个text, untokenized
       text_b: (Optional) string. The untokenized text of the second sequence.
         Only must be specified for sequence pair tasks.
+        第二段text，只有在两个sequence的分类任务上需要被用到
       label: (Optional) string. The label of the example. This should be
         specified for train and dev examples, but not for test examples.
     """
@@ -377,6 +381,7 @@ class ColaProcessor(DataProcessor):
 def convert_single_example(ex_index, example, label_list, max_seq_length,
                            tokenizer):
   """Converts a single `InputExample` into a single `InputFeatures`."""
+  """ 把一个`InputExample`改成一个`InputFeatures`. """
 
   if isinstance(example, PaddingInputExample):
     return InputFeatures(
