@@ -29,6 +29,7 @@ def create_optimizer(loss, init_lr, num_train_steps, num_warmup_steps, use_tpu):
   learning_rate = tf.constant(value=init_lr, shape=[], dtype=tf.float32)
 
   # Implements linear decay of the learning rate.
+  # 学习率线性下降
   learning_rate = tf.train.polynomial_decay(
       learning_rate,
       global_step,
@@ -39,6 +40,8 @@ def create_optimizer(loss, init_lr, num_train_steps, num_warmup_steps, use_tpu):
 
   # Implements linear warmup. I.e., if global_step < num_warmup_steps, the
   # learning rate will be `global_step/num_warmup_steps * init_lr`.
+  # 学习率线性预热，在global_step < num_warmup_steps的时候，学习率线性上升
+  # 学习率为`global_step/num_warmup_steps * init_lr`
   if num_warmup_steps:
     global_steps_int = tf.cast(global_step, tf.int32)
     warmup_steps_int = tf.constant(num_warmup_steps, dtype=tf.int32)
@@ -56,6 +59,7 @@ def create_optimizer(loss, init_lr, num_train_steps, num_warmup_steps, use_tpu):
   # It is recommended that you use this optimizer for fine tuning, since this
   # is how the model was trained (note that the Adam m/v variables are NOT
   # loaded from init_checkpoint.)
+  # 我们推荐你在finetuning的时候使用这个optimizer，因为模型就是这么训练的。
   optimizer = AdamWeightDecayOptimizer(
       learning_rate=learning_rate,
       weight_decay_rate=0.01,
