@@ -679,7 +679,7 @@ def attention_layer(from_tensor,
 
   In practice, the multi-headed attention are done with transposes and
   reshapes rather than actual separate tensors.
-  从写代码角度来说，multi-headed attention是用了一些transpose和rehspae的方法，
+  从写代码角度来说，multi-headed attention是用了一些 transpose 和 reshape 的方法，
   而不是真的有分成多个tensor来实现。
 
   Args:
@@ -774,6 +774,8 @@ def attention_layer(from_tensor,
   to_tensor_2d = reshape_to_matrix(to_tensor)
 
   # `query_layer` = [B*F, N*H]
+  # 以下三个线性变换，把from_tensor变成了query, key和value
+  # 把 from_tensor 转变成 num_attention_heads 个 size_per_head
   query_layer = tf.layers.dense(
       from_tensor_2d,
       num_attention_heads * size_per_head,
@@ -820,6 +822,8 @@ def attention_layer(from_tensor,
     # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
     # masked positions, this operation will create a tensor which is 0.0 for
     # positions we want to attend and -10000.0 for masked positions.
+    # 在 attention_mask 当中，1.0 表示内容，0.0 表示需要被mask掉的部分
+    # 我们现在要把mask部分变成-10000.0然后把内容部分变成0.0
     adder = (1.0 - tf.cast(attention_mask, tf.float32)) * -10000.0
 
     # Since we are adding it to the raw scores before the softmax, this is
